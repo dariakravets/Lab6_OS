@@ -1,0 +1,41 @@
+#include <iostream>
+#include <thread>
+#include <mutex>
+
+using namespace std;
+
+// shared variable
+int shared_v = 0;
+
+// function to increment shared_v synchronously
+void incrementSynchronously(int numIncrements, bool firstThread, mutex* mtx) {
+    for(int i = 0; i < numIncrements; i++) {
+        // Wait for our turn
+        while((firstThread && (i % 2 == 1)) || (!firstThread && (i % 2 == 0)));
+
+        mtx->lock();
+        shared_v++;
+        mtx->unlock();
+    }
+}
+
+int main() {
+    const int numIncrements = 1000; // 1000 increments per thread
+
+    // increment synchronously
+    shared_v = 0;
+    mutex mtx;
+    bool firstThread = true;
+    auto start = chrono::steady_clock::now();
+    thread t1(incrementSynchronously, numIncrements, firstThread, &mtx);
+    firstThread = false;
+    thread t2(incrementSynchronously, numIncrements, firstThread, &mtx);
+    t1.join();
+    t2.join();
+    auto end = chrono::steady_clock::now();
+    auto diff = end - start;
+    cout << "Synchronously: " << shared_v << endl;
+    cout << "Time taken: " << chrono::duration<double, milli>(diff).count() << " ms" << endl;
+
+    return 0;
+}
